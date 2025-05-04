@@ -347,6 +347,10 @@ class PDAVisualizerApp:
                     self.processing = False
                     self.step_button.configure(state=tk.DISABLED)
                     self.draw_pda()
+                    # Show rejection popup
+                    messagebox.showerror("PDA Result", 
+                        f"The string '{self.input_string}' is NOT a valid palindrome!\n\n"
+                        f"Stack became empty before finishing the input processing.")
                     return "rejected"
                 
                 current_char = self.input_string[self.input_position]
@@ -360,6 +364,10 @@ class PDAVisualizerApp:
                     self.processing = False
                     self.step_button.configure(state=tk.DISABLED)
                     self.draw_pda()
+                    # Show rejection popup with detailed reason
+                    messagebox.showerror("PDA Result", 
+                        f"The string '{self.input_string}' is NOT a valid palindrome!\n\n"
+                        f"Mismatch at position {self.input_position}: expected '{stack_top}' but got '{current_char}'")
                     return "rejected"
                 
                 self.input_position += 1
@@ -374,6 +382,8 @@ class PDAVisualizerApp:
                     self.processing = False
                     self.step_button.configure(state=tk.DISABLED)
                     self.draw_pda()
+                    # Show acceptance popup
+                    messagebox.showinfo("PDA Result", f"The string '{self.input_string}' is a valid palindrome!")
                     return "accepted"
                 else:
                     # Stack still has symbols, not a palindrome
@@ -382,6 +392,8 @@ class PDAVisualizerApp:
                     self.processing = False
                     self.step_button.configure(state=tk.DISABLED)
                     self.draw_pda()
+                    # Show rejection popup
+                    messagebox.showerror("PDA Result", f"The string '{self.input_string}' is NOT a valid palindrome! (Stack not empty after input processed)")
                     return "rejected"
 
 if __name__ == "__main__":
