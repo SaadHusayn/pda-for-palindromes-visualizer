@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-import time
+import math
 
 class PDAVisualizerApp:
     def __init__(self, root):
@@ -73,21 +73,24 @@ class PDAVisualizerApp:
         self.reset_button = ttk.Button(button_frame, text="Reset", command=self.reset)
         self.reset_button.pack(side=tk.LEFT, padx=5)
         
-        self.step_button = ttk.Button(button_frame, text="Continue Popping", 
-                                     command=self.step_forward, state=tk.DISABLED)
-        self.step_button.pack(side=tk.LEFT, padx=5)
+        # Button frames for different states
+        self.q0_frame = ttk.Frame(button_frame)
+        self.q0_frame.pack(side=tk.LEFT, padx=5)
         
-        # Non-deterministic choice buttons (initially hidden)
-        self.nd_frame = ttk.Frame(button_frame)
-        self.nd_frame.pack(side=tk.LEFT, padx=20)
-        
-        self.continue_push_button = ttk.Button(self.nd_frame, text="Continue Pushing", 
+        self.continue_push_button = ttk.Button(self.q0_frame, text="Continue Pushing", 
                                              command=lambda: self.make_choice(False), state=tk.DISABLED)
         self.continue_push_button.pack(side=tk.LEFT, padx=5)
         
-        self.start_matching_button = ttk.Button(self.nd_frame, text="Select Center", 
+        self.start_matching_button = ttk.Button(self.q0_frame, text="Select Center", 
                                               command=lambda: self.make_choice(True), state=tk.DISABLED)
         self.start_matching_button.pack(side=tk.LEFT, padx=5)
+        
+        self.q1_frame = ttk.Frame(button_frame)
+        self.q1_frame.pack(side=tk.LEFT, padx=5)
+        
+        self.step_button = ttk.Button(self.q1_frame, text="Continue Popping", 
+                                     command=self.step_forward, state=tk.DISABLED)
+        self.step_button.pack(side=tk.LEFT, padx=5)
         
         # Canvas for PDA visualization
         self.canvas_frame = ttk.Frame(main_frame, borderwidth=2, relief=tk.GROOVE)
@@ -120,10 +123,12 @@ class PDAVisualizerApp:
             "Non-Deterministic Push Down Automata for Palindromes over L = {a, b}\n"
             "States: q0 (pushing), q1 (matching), q2 (accepting)\n"
             "Transitions:\n"
-            "• In q0: Read 'a'/'b' → Push to stack → Stay in q0\n"
-            "• From q0 to q1: Non-deterministically guess the middle → Stay in q1\n"
-            "• In q1: Read 'a'/'b' → Compare with stack top → Pop if matching → Stay in q1\n"
-            "• From q1 to q2: If end of input and stack is empty or has only Z₀ → Accept the string"
+            "• In q0: (a, ε | a) - Read 'a', push 'a' to stack\n"
+            "• In q0: (b, ε | b) - Read 'b', push 'b' to stack\n"
+            "• From q0 to q1: (ε, ε | ε) - Non-deterministically guess the middle\n"
+            "• In q1: (a, a | ε) - Read 'a', match 'a' on stack top, pop it\n"
+            "• In q1: (b, b | ε) - Read 'b', match 'b' on stack top, pop it\n"
+            "• From q1 to q2: (ε, Z₀ | Z₀) - If end of input and stack has only Z₀ → Accept"
         )
         
         ttk.Label(desc_frame, text=description, justify=tk.LEFT, 
@@ -180,32 +185,26 @@ class PDAVisualizerApp:
         self.canvas.create_text(q2_x, q2_y, text="q2\n(accept)", font=("Arial", 12, "bold"))
         
         # Draw transitions
-        # q0 to q0 (self loop for pushing characters)
-        self.canvas.create_arc(q0_x-40, q0_y-80, q0_x+40, q0_y-20,
-                              start=30, extent=120, style=tk.ARC, width=2)
-        self.canvas.create_text(q0_x, q0_y-60, 
-                               text="a → push a\nb → push b", 
-                               font=("Arial", 10))
+        # q0 to q0 self loop (for pushing characters) - improved curved arrow above the state
+        self.draw_self_loop(q0_x, q0_y, state_radius, 90, 135, 45, 
+                           "(a, ε | a)\n(b, ε | b)")
         
         # q0 to q1 (nondeterministic transition - guess middle)
         self.canvas.create_line(q0_x+state_radius, q0_y, q1_x-state_radius, q1_y,
                                arrow=tk.LAST, width=2)
         self.canvas.create_text((q0_x+q1_x)/2, q0_y-20, 
-                               text="ε → ε (guess middle)", 
+                               text="(ε, ε | ε)", 
                                font=("Arial", 10))
         
-        # q1 self loop (matching and popping)
-        self.canvas.create_arc(q1_x-40, q1_y-80, q1_x+40, q1_y-20,
-                              start=30, extent=120, style=tk.ARC, width=2)
-        self.canvas.create_text(q1_x, q1_y-60, 
-                               text="a, a → ε\nb, b → ε", 
-                               font=("Arial", 10))
+        # q1 self loop (matching and popping) - improved curved arrow above the state
+        self.draw_self_loop(q1_x, q1_y, state_radius, 90, 135, 45, 
+                           "(a, a | ε)\n(b, b | ε)")
         
         # q1 to q2 (acceptance when stack is empty or just Z₀)
         self.canvas.create_line(q1_x+state_radius, q1_y, q2_x-state_radius, q2_y,
                                arrow=tk.LAST, width=2)
         self.canvas.create_text((q1_x+q2_x)/2, q1_y-20, 
-                               text="ε, Z₀ → Z₀\n(end of input)", 
+                               text="(ε, Z₀ | Z₀)", 
                                font=("Arial", 10))
         
         # Draw a vertical separator
@@ -225,7 +224,7 @@ class PDAVisualizerApp:
         self.canvas.create_text(stack_x, height * 0.25, text="Stack",
                                font=("Arial", 12, "bold"))
         
-        # Draw stack contents
+        # Draw stack contents - FIXED: Display stack in correct order
         if not self.stack:
             self.canvas.create_text(stack_x, stack_base_y - 20, 
                                    text="Z₀ (Bottom)", font=("Arial", 10))
@@ -238,8 +237,8 @@ class PDAVisualizerApp:
             self.canvas.create_text(stack_x, stack_base_y - stack_height/2,
                                    text="Z₀", font=("Arial", 10, "bold"))
             
-            # Draw actual stack contents above Z₀
-            for i, symbol in enumerate(reversed(self.stack)):
+            # Draw actual stack contents above Z₀ - in correct order (first pushed at bottom)
+            for i, symbol in enumerate(self.stack): # Removed reversed() to display in correct order
                 y_pos = stack_base_y - (i+2) * stack_height  # +2 to leave room for Z₀
                 self.canvas.create_rectangle(stack_x - 20, y_pos,
                                            stack_x + 20, y_pos + stack_height,
@@ -279,27 +278,74 @@ class PDAVisualizerApp:
                 self.canvas.create_text(head_x, tape_y + 50,
                                        text="Read Head", font=("Arial", 10))
                                        
-        # Draw non-deterministic choice information if needed
-        if self.current_state == "q0" and not self.nondeterministic_choice_made:
-            # Display information about nondeterministic choice
-            info_x = width * 0.35
-            info_y = height * 0.85
-            
+        # Draw state-specific information
+        info_x = width * 0.35
+        info_y = height * 0.85
+        
+        if self.current_state == "q0":
+            # Display information about state q0 actions
             self.canvas.create_rectangle(info_x - 180, info_y - 40,
                                        info_x + 180, info_y + 40,
                                        fill="#ffffcc", outline="black")
             
             self.canvas.create_text(info_x, info_y - 20,
-                             text="Non-deterministic choice point",
+                             text="State q0 (Pushing Phase)",
                              font=("Arial", 10, "bold"))
             
             self.canvas.create_text(info_x, info_y,
-                             text="Either: 1) Continue pushing to stack",
+                             text="• Continue pushing symbols to stack",
                              font=("Arial", 10))
                              
             self.canvas.create_text(info_x, info_y + 20,
-                             text="Or: 2) Guess this is middle & start matching",
+                             text="• Or select center and transition to q1",
                              font=("Arial", 10))
+        
+        elif self.current_state == "q1":
+            # Display information about state q1 actions
+            self.canvas.create_rectangle(info_x - 180, info_y - 40,
+                                       info_x + 180, info_y + 40,
+                                       fill="#ffffcc", outline="black")
+            
+            self.canvas.create_text(info_x, info_y - 20,
+                             text="State q1 (Matching Phase)",
+                             font=("Arial", 10, "bold"))
+            
+            self.canvas.create_text(info_x, info_y,
+                             text="• Read input and compare with stack top",
+                             font=("Arial", 10))
+                             
+            self.canvas.create_text(info_x, info_y + 20,
+                             text="• Pop matching symbols from stack",
+                             font=("Arial", 10))
+    
+    def draw_self_loop(self, x, y, radius, start_angle, arc_angle, end_angle, label_text):
+        """Draw a self loop as a curved arrow pointing back to the same state"""
+        # Calculate control points for the curved arrow
+        start_angle_rad = math.radians(start_angle)
+        arc_angle_rad = math.radians(arc_angle)
+        end_angle_rad = math.radians(end_angle)
+        
+        # Start and end points of the arrow (on the state circle)
+        start_x = x + radius * math.cos(start_angle_rad)
+        start_y = y - radius * math.sin(start_angle_rad)  # Negative because y increases downward
+        end_x = x + radius * math.cos(end_angle_rad)
+        end_y = y - radius * math.sin(end_angle_rad)
+        
+        # Control point for the curve (above the state)
+        control_x = x + radius * math.cos(arc_angle_rad) * 1.5
+        control_y = y - radius * math.sin(arc_angle_rad) * 2  # Higher above state
+        
+        # Draw the curved arrow
+        arrow_points = [start_x, start_y,
+                       control_x, control_y,
+                       end_x, end_y]
+        
+        self.canvas.create_line(arrow_points, smooth=True, arrow=tk.LAST, width=2)
+        
+        # Draw the label
+        label_x = control_x
+        label_y = control_y - 15  # Position label slightly above the curve
+        self.canvas.create_text(label_x, label_y, text=label_text, font=("Arial", 10))
 
     def start_processing(self):
         self.input_string = self.input_entry.get().strip()
@@ -323,16 +369,16 @@ class PDAVisualizerApp:
         # Initialize PDA
         self.reset()
         self.processing = True
-        self.step_button.configure(state=tk.NORMAL)
         self.start_button.configure(state=tk.DISABLED)
         
         # Update UI
         self.current_input_label.configure(text=f"Current Input: {self.input_string}")
         self.result_label.configure(text="Result: Processing...")
         
-        # Enable non-deterministic choice buttons
+        # In q0 initially, enable only push and select center buttons
         self.continue_push_button.configure(state=tk.NORMAL)
         self.start_matching_button.configure(state=tk.NORMAL)
+        self.step_button.configure(state=tk.DISABLED)  # Disable popping in q0
         
         # Start automatic processing if not in step mode
         self.draw_pda()
@@ -350,6 +396,8 @@ class PDAVisualizerApp:
         self.current_state_label.configure(text="Current State: q0")
         self.stack_label.configure(text="Stack: []")
         self.current_input_label.configure(text="Current Input: ")
+        
+        # Reset button states
         self.start_button.configure(state=tk.NORMAL)
         self.step_button.configure(state=tk.DISABLED)
         self.continue_push_button.configure(state=tk.DISABLED)
@@ -365,13 +413,18 @@ class PDAVisualizerApp:
         if start_matching:
             # Transition to matching state q1
             self.current_state = "q1"
+            # Update UI to reflect state change
+            self.current_state_label.configure(text=f"Current State: {self.current_state}")
+            # Enable only the pop button when in q1
+            self.continue_push_button.configure(state=tk.DISABLED)
+            self.start_matching_button.configure(state=tk.DISABLED)
+            self.step_button.configure(state=tk.NORMAL)
+            # Redraw to show the state transition
+            self.draw_pda()
+            return
+        
         # else: stay in q0 and continue pushing (already the default)
-        
-        # Disable choice buttons since choice is made
-        self.continue_push_button.configure(state=tk.DISABLED)
-        self.start_matching_button.configure(state=tk.DISABLED)
-        
-        # Process the next step automatically
+        # Process the next push step automatically
         self.process_step()
     
     def process_automatically(self):
@@ -416,15 +469,24 @@ class PDAVisualizerApp:
                 if self.input_position < len(self.input_string):
                     self.continue_push_button.configure(state=tk.NORMAL)
                     self.start_matching_button.configure(state=tk.NORMAL)
+                    self.step_button.configure(state=tk.DISABLED)  # Disable popping in q0
                 else:
                     # If we've reached the end of input in state q0,
                     # we need to transition to state q1 automatically
                     self.current_state = "q1"
+                    # Enable only popping in q1
+                    self.continue_push_button.configure(state=tk.DISABLED)
+                    self.start_matching_button.configure(state=tk.DISABLED)
+                    self.step_button.configure(state=tk.NORMAL)
                     self.draw_pda()
                 return "continue"
             else:
                 # End of input in q0, transition to q1 for matching
                 self.current_state = "q1"
+                # Enable only popping in q1
+                self.continue_push_button.configure(state=tk.DISABLED)
+                self.start_matching_button.configure(state=tk.DISABLED)
+                self.step_button.configure(state=tk.NORMAL)
                 self.draw_pda()
                 return "continue"
         
@@ -451,8 +513,10 @@ class PDAVisualizerApp:
                     return "rejected"
                     
                 stack_top = self.stack.pop()
+
                 
                 if current_char != stack_top:
+                    self.stack.append(stack_top) #this character can not be removed from the stack as there is mismatch
                     # Not a palindrome
                     self.result_label.configure(
                         text=f"Result: Rejected (Mismatch at position {self.input_position}, "
