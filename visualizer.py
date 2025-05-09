@@ -40,7 +40,7 @@ class PDAVisualizerApp:
         main_frame.pack(fill=tk.BOTH, expand=True)
         
         # Title
-        title_label = ttk.Label(main_frame, text="Non-Deterministic PDA (NPDA) for Palindromes", 
+        title_label = ttk.Label(main_frame, text="Non-Deterministic PDA (NPDA) for Palindromes i.e L={ww^r | w belongs {a, b}^+ }", 
                                style="Header.TLabel")
         title_label.pack(pady=10)
         
@@ -204,7 +204,7 @@ class PDAVisualizerApp:
         self.canvas.create_line(q1_x+state_radius, q1_y, q2_x-state_radius, q2_y,
                                arrow=tk.LAST, width=2)
         self.canvas.create_text((q1_x+q2_x)/2, q1_y-20, 
-                               text="(ε, Z₀ | Z₀)", 
+                               text="(ε, Z₀ | ε)", 
                                font=("Arial", 10))
         
         # Draw a vertical separator
@@ -226,7 +226,11 @@ class PDAVisualizerApp:
         
         # Draw stack contents - FIXED: Display stack in correct order
         if not self.stack:
-            self.canvas.create_text(stack_x, stack_base_y - 20, 
+            if self.current_state == "q2":
+                    self.canvas.create_text(stack_x, stack_base_y - 20, 
+                                   text="ε (Epsilon)", font=("Arial", 10))
+            else: 
+                self.canvas.create_text(stack_x, stack_base_y - 20, 
                                    text="Z₀ (Bottom)", font=("Arial", 10))
         else:
             stack_height = 25
