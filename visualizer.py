@@ -187,7 +187,7 @@ class PDAVisualizerApp:
         # Draw transitions
         # q0 to q0 self loop (for pushing characters) - improved curved arrow above the state
         self.draw_self_loop(q0_x, q0_y, state_radius, 90, 135, 45, 
-                           "(a, ε | a)\n(b, ε | b)")
+                           "(a, ε | a), (a, a | aa), (a, b | ab)\n(b, ε | b), (b, b | bb), (b, a, | ba)")
         
         # q0 to q1 (nondeterministic transition - guess middle)
         self.canvas.create_line(q0_x+state_radius, q0_y, q1_x-state_radius, q1_y,
